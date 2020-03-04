@@ -299,6 +299,8 @@ Spec generateQueryClassSpec(QueryDefinition definition) {
   );
 }
 
+final List<Definition> dedupC = [];
+
 /// Gathers and generates a [Spec] of a whole query/mutation and its
 /// dependencies into a single library file.
 Spec generateLibrarySpec(LibraryDefinition definition) {
@@ -336,14 +338,21 @@ Spec generateLibrarySpec(LibraryDefinition definition) {
   ];
 
   for (final queryDef in definition.queries) {
-    bodyDirectives.addAll(queryDef.classes
+    final addC = queryDef.classes.where((temp) =>
+        dedupC.firstWhere((dedup) => temp.name == dedup.name,
+            orElse: () => null) ==
+        null);
+
+    bodyDirectives.addAll(addC
         .whereType<FragmentClassDefinition>()
         .map(fragmentClassDefinitionToSpec));
-    bodyDirectives.addAll(queryDef.classes.whereType<ClassDefinition>().map(
-        (cDef) => classDefinitionToSpec(
-            cDef, queryDef.classes.whereType<FragmentClassDefinition>())));
-    bodyDirectives.addAll(
-        queryDef.classes.whereType<EnumDefinition>().map(enumDefinitionToSpec));
+    bodyDirectives.addAll(addC.whereType<ClassDefinition>().map((cDef) =>
+        classDefinitionToSpec(
+            cDef, addC.whereType<FragmentClassDefinition>())));
+    bodyDirectives
+        .addAll(addC.whereType<EnumDefinition>().map(enumDefinitionToSpec));
+
+    dedupC.addAll(addC);
 
     if (queryDef.inputs.isNotEmpty && queryDef.generateHelpers) {
       bodyDirectives.add(generateArgumentClassSpec(queryDef));
